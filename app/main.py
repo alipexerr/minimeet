@@ -1,6 +1,8 @@
-from fastapi import FastAPI, HTTPException, status
-from app.rooms import create_room, get_room
 import uuid
+
+from fastapi import FastAPI, HTTPException, status
+
+from app.rooms import create_room, get_room
 
 # Create the FastAPI application instance
 app = FastAPI(title="MiniMeet")
