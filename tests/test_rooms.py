@@ -67,6 +67,7 @@ def test_join_full_room():
     assert response.status_code == 409
     data = response.json()
     assert data == {"detail": f"Room with id '{room_id}' is full."}
+    assert len(rooms[room_id]["participants"]) == 2
 
 
 def test_join_room():
@@ -89,6 +90,57 @@ def test_join_room():
     assert len(data["participants"]) == 1
     assert data["participants"][0] == rooms[room_id]["participants"][0]
     assert data["id"] == room_id
+
+
+def test_different_participants_ide():
+    response = client.post("/rooms")
+    room_id = response.json()["id"]
+
+    response1 = client.post(f"/rooms/{room_id}/join")
+    participant_id1 = response1.json()["participant_id"]
+
+    response2 = client.post(f"/rooms/{room_id}/join")
+    participant_id2 = response2.json()["participant_id"]
+
+    assert participant_id1 != participant_id2
+
+def test_remove_user_from_room():
+    response = client.post("/rooms")
+    room_id = response.json()["id"]
+
+    # Join the room with a participant
+    join_response = client.post(f"/rooms/{room_id}/join")
+    participant_id = join_response.json()["participant_id"]
+
+    remove_response = client.delete(f"/rooms/{room_id}/participants/{participant_id}")
+    assert remove_response.status_code == 200
+    data = remove_response.json()
+    assert data == {"message": f"User with id '{participant_id}' removed from room '{room_id}'."}
+    assert participant_id not in rooms[room_id]["participants"]
+    assert len(rooms[room_id]["participants"]) == 0
+
+def test_remove_non_existent_user_from_room():
+    response = client.post("/rooms")
+    room_id = response.json()["id"]
+
+    # Attempt to remove a non-existent participant
+    non_existent_user_id = "non-existent-user-id"
+    remove_response = client.delete(f"/rooms/{room_id}/participants/{non_existent_user_id}")
+    assert remove_response.status_code == 404
+    data = remove_response.json()
+    assert data == {"detail": f"User with id '{non_existent_user_id}' not found in room '{room_id}'."}
+
+def test_remove_user_from_non_existent_room():
+    non_existent_room_id = "non-existent-room-id"
+    user_id = "some-user-id"
+
+    remove_response = client.delete(f"/rooms/{non_existent_room_id}/participants/{user_id}")
+    assert remove_response.status_code == 404
+    data = remove_response.json()
+    assert data == {"detail": f"Room with id '{non_existent_room_id}' not found."}
+    
+    
+
     
 
 

@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import FastAPI, HTTPException, status
 
-from app.rooms import create_room, get_room
+from app.rooms import create_room, get_room, remove_user_from_room
 
 # Create the FastAPI application instance
 app = FastAPI(title="MiniMeet")
@@ -63,3 +63,21 @@ def api_get_room(room_id: str):
             detail=f"Room with id '{room_id}' not found."
         )
     return room
+
+@app.delete("/rooms/{room_id}/participants/{user_id}")
+def api_remove_user_from_room(room_id: str, user_id: str):
+    """Endpoint to remove a participant from a room."""
+    room = get_room(room_id)
+    if room is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Room with id '{room_id}' not found."
+        )
+    if user_id not in room["participants"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id '{user_id}' not found in room '{room_id}'."
+        )
+    
+    remove_user_from_room(room_id, user_id)
+    return {"message": f"User with id '{user_id}' removed from room '{room_id}'."}
