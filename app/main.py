@@ -1,7 +1,8 @@
 import uuid
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
 
+from app.connection_manager import manager
 from app.rooms import create_room, get_room, remove_user_from_room
 
 # Create the FastAPI application instance
@@ -81,3 +82,25 @@ def api_remove_user_from_room(room_id: str, user_id: str):
     
     remove_user_from_room(room_id, user_id)
     return {"message": f"User with id '{user_id}' removed from room '{room_id}'."}
+
+@app.websocket("/ws/{room_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str):
+    """
+    WebSocket endpoint for real-time communication in a room.
+    Accepts connections, manages active participants, and handles disconnections.
+    """
+    connected = await manager.connect(room_id, websocket)
+    if not connected:
+        return  # Connection was rejected (room full)   
+
+    try:
+        while True:
+            # Wait for a message from the client
+            data = await websocket.receive_text()
+            # Broadcast the received message to all participants in the room
+            for connection in manager.active_connections.get(room_id, []):
+                if connection != websocket:  # Don't send back to the sender
+                    await connection.send_text(data)
+    except WebSocketDisconnect:
+        # Handle disconnection: remove the websocket from the room
+        manager.disconnect(room_id, websocket)
